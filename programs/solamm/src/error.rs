@@ -13,4 +13,13 @@ pub enum AmmCode {
 
     #[msg("A math overflow occurred. The numbers got too big.")]
     MathOverflow,
+
+    #[msg("Invalid mint order. Mint A must be mathematically less than Mint B.")]
+    InvalidMintOrder,
+
+    #[msg("Fee must be less than 10,000 basis points (100%).")]
+    InvalidFee,
+
+    #[msg("Slippage tolerance exceeded. Minimum output not reached.")]
+    SlippageExceeded,
 }
