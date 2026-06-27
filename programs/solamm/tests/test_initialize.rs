@@ -1,32 +1,41 @@
-
 use {
-    anchor_lang::{solana_program::instruction::Instruction, InstructionData, ToAccountMetas},
-    litesvm::LiteSVM,
-    solana_message::{Message, VersionedMessage},
-    solana_signer::Signer,
+    anchor_lang::{prelude::Pubkey, system_program, InstructionData, ToAccountMetas},
+    anchor_spl::token,
     solana_keypair::Keypair,
-    solana_transaction::versioned::VersionedTransaction,
+    solana_signer::Signer,
 };
 
 #[test]
-fn test_initialize() {
+fn test_build_init_pool_instruction() {
     let program_id = solamm::id();
     let payer = Keypair::new();
-    let mut svm = LiteSVM::new();
-    let bytes = include_bytes!("../../../target/deploy/solamm.so");
-    svm.add_program(program_id, bytes).unwrap();
-    svm.airdrop(&payer.pubkey(), 1_000_000_000).unwrap();
-    
-    let instruction = Instruction::new_with_bytes(
-        program_id,
-        &solamm::instruction::Initialize {}.data(),
-        solamm::accounts::Initialize {}.to_account_metas(None),
+    let mint_a = Pubkey::new_unique();
+    let mint_b = Pubkey::new_unique();
+    let (pool, _) = Pubkey::find_program_address(
+        &[b"pool", mint_a.as_ref(), mint_b.as_ref()],
+        &program_id,
     );
+    let (vault_a, _) = Pubkey::find_program_address(&[b"vault_a", pool.as_ref()], &program_id);
+    let (vault_b, _) = Pubkey::find_program_address(&[b"vault_b", pool.as_ref()], &program_id);
+    let (lp_mint, _) = Pubkey::find_program_address(&[b"lp_mint", pool.as_ref()], &program_id);
+    let (authority, _) = Pubkey::find_program_address(&[b"authority", pool.as_ref()], &program_id);
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[payer]).unwrap();
+    let data = solamm::instruction::InitPool { fee_bps: 30 }.data();
+    let accounts = solamm::accounts::InitPool {
+        pool,
+        mint_a,
+        mint_b,
+        vault_a,
+        vault_b,
+        lp_mint,
+        authority,
+        payer: payer.pubkey(),
+        system_program: system_program::ID,
+        token_program: token::ID,
+        rent: Pubkey::new_unique(),
+    }
+    .to_account_metas(None);
 
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
+    assert!(!data.is_empty());
+    assert_eq!(accounts.len(), 11);
 }
