@@ -91,3 +91,28 @@ pub fn calculate_swap_output(
 
     Ok(amount_out as u64)
 }
+pub fn tokens_on_withdraw(
+    lp_amount: u64,
+    reserve_a: u64,
+    reserve_b: u64,
+    lp_supply: u64,
+) -> Result<(u64, u64)> {
+    require!(lp_amount > 0 && lp_supply > 0, AmmCode::ZeroLiquidity);
+
+    let lp = lp_amount as u128;
+    let supply = lp_supply as u128;
+
+    let a_out = lp
+        .checked_mul(reserve_a as u128)
+        .ok_or(AmmCode::MathOverflow)?
+        / supply; // floor — favors pool
+
+    let b_out = lp
+        .checked_mul(reserve_b as u128)
+        .ok_or(AmmCode::MathOverflow)?
+        / supply; // floor — favors pool
+
+    require!(a_out > 0 && b_out > 0, AmmCode::InsufficientLiquidity);
+
+    Ok((a_out as u64, b_out as u64))
+}

@@ -47,7 +47,7 @@ pub struct InitPool<'info> {
         bump,
     )]
     pub lp_mint: Account<'info, Mint>,
-
+    /// CHECK
     #[account(
         seeds = [b"authority",pool.key().as_ref()],
         bump,
