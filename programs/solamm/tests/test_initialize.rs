@@ -11,10 +11,8 @@ fn test_build_init_pool_instruction() {
     let payer = Keypair::new();
     let mint_a = Pubkey::new_unique();
     let mint_b = Pubkey::new_unique();
-    let (pool, _) = Pubkey::find_program_address(
-        &[b"pool", mint_a.as_ref(), mint_b.as_ref()],
-        &program_id,
-    );
+    let (pool, _) =
+        Pubkey::find_program_address(&[b"pool", mint_a.as_ref(), mint_b.as_ref()], &program_id);
     let (vault_a, _) = Pubkey::find_program_address(&[b"vault_a", pool.as_ref()], &program_id);
     let (vault_b, _) = Pubkey::find_program_address(&[b"vault_b", pool.as_ref()], &program_id);
     let (lp_mint, _) = Pubkey::find_program_address(&[b"lp_mint", pool.as_ref()], &program_id);

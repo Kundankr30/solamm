@@ -9,11 +9,6 @@ use anchor_lang::prelude::*;
 declare_id!("9RnLR4wcfRqNc7abzqbTxK18Z8Rwv82Y9f4d5Zn36trn");
 
 pub use instructions::*;
-// pub(crate) use instructions::{
-//     __client_accounts_add_liquidity, __client_accounts_init_pool,
-//     __client_accounts_remove_liquidity,
-// };
-
 #[program]
 pub mod solamm {
     use super::*;
@@ -39,5 +34,14 @@ pub mod solamm {
         instructions::remove_liquidity::remove_liquidity_handler(
             ctx, lp_amount, min_a_out, min_b_out,
         )
+    }
+
+    pub fn swap(
+        ctx: Context<Swap>,
+        amount_in: u64,
+        min_amount_out: u64,
+        a_to_b: bool,
+    ) -> Result<()> {
+        instructions::swap::swap_handler(ctx, amount_in, min_amount_out, a_to_b)
     }
 }
