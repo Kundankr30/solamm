@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solamm = "9RnLR4wcfRqNc7abzqbTxK18Z8Rwv82Y9f4d5Zn36trn"
+solamm = "GCuuqz4THCtS76xqQrqkvrVPsYwiWsfVvWBk6ABCJKvB"
 
 [provider]
 cluster = "localnet"
