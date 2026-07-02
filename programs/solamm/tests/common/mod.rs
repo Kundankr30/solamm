@@ -92,9 +92,22 @@ pub struct TestContext {
 pub fn setup() -> TestContext {
     let mut svm = LiteSVM::new();
 
-    // Load compiled program (.so path baked in at build time by build.rs).
-    let so_path = env!("SOLAMM_SO");
-    svm.add_program_from_file(solamm::id(), so_path)
+    // Load compiled program (.so). Check SOLAMM_SO env var first, then fall
+    // back to the conventional Anchor build output path.
+    let so_path = std::env::var("SOLAMM_SO").unwrap_or_else(|_| {
+        // CARGO_MANIFEST_DIR points to programs/solamm; go up two levels to
+        // reach the workspace root, then into the Anchor deploy directory.
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let workspace_root = std::path::Path::new(manifest_dir)
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("Could not determine workspace root from CARGO_MANIFEST_DIR");
+        workspace_root
+            .join("target/deploy/solamm.so")
+            .to_string_lossy()
+            .into_owned()
+    });
+    svm.add_program_from_file(solamm::id(), &so_path)
         .expect("Failed to load solamm.so — run `anchor build` first");
 
     let payer = Keypair::new();
