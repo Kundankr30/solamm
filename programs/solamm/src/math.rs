@@ -120,9 +120,6 @@ pub fn tokens_on_withdraw(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ---------- calculate_initial_lp ----------
-
     #[test]
     fn initial_lp_basic_1_1() {
         // isqrt(1) = 1
@@ -161,20 +158,9 @@ mod tests {
 
     #[test]
     fn initial_lp_overflow_errors() {
-        // u64::MAX * u64::MAX overflows u128 only if it exceeds u128::MAX.
-        // u64::MAX^2 = 2^128 - 2^65 + 1, which fits in u128. Pick values that push past u128::MAX.
-        // (2^64 - 1)^2 = 2^128 - 2^65 + 1 < 2^128, so this WILL fit. We need amount_a * amount_b > u128::MAX.
-        // Use amounts whose product exceeds u128::MAX. (1 << 100) * (1 << 100) = 1 << 200 > 2^128.
-        // But u64 max is 2^64 - 1, so we need each amount close to 2^64.
-        // 2^64 - 1 squared is 2^128 - 2^65 + 1, which is < 2^128. Hmm — we cannot overflow with u64s only.
-        // Confirm that u64::MAX^2 fits in u128 (yes) so this case is unreachable in practice.
-        // We still verify the success path for the maximum values.
         let res = calculate_initial_lp(u64::MAX, u64::MAX);
-        // (2^64-1)^2 = 2^128 - 2^65 + 1, isqrt ~= 2^64 - 1
         assert!(res.is_ok());
     }
-
-    // ---------- calculate_lp_tokens ----------
 
     #[test]
     fn lp_tokens_balanced() {
@@ -222,18 +208,10 @@ mod tests {
     fn lp_tokens_no_overflow_at_max() {
         // 2^64-1 * 2^64-1 = 2^128 - 2^65 + 1 fits in u128.
         let res = calculate_lp_tokens(u64::MAX, u64::MAX, u64::MAX, u64::MAX, u64::MAX);
-        // Each side: (u64::MAX * u64::MAX) / u64::MAX = u64::MAX. Min = u64::MAX.
         assert_eq!(res.unwrap(), u64::MAX);
     }
-
-    // ---------- calculate_swap_output ----------
-
     #[test]
     fn swap_basic_constant_product() {
-        // x*y=k with 1000/1000, swap 100 A→B with 30 bps fee.
-        // num = 1000 * 100 * 9970 = 997_000_000
-        // den = 1000 * 10000 + 100 * 9970 = 10_000_000 + 997_000 = 10_997_000
-        // out = 997_000_000 / 10_997_000 = 90 (floor: 90.66...)
         let out = calculate_swap_output(100, 1000, 1000, 30).unwrap();
         assert_eq!(out, 90);
     }
@@ -284,14 +262,14 @@ mod tests {
 
     #[test]
     fn swap_no_overflow_within_safe_envelope() {
-        // Use values that don't blow up the 128-bit math. The exact overflow boundary
-        // is reserve_in * amount_in * (10000 - fee) > u128::MAX. With reserves ~ 1e15
-        // and amount_in ~ 1e10, the intermediate nume is ~ 1e15 * 1e10 * 1e4 = 1e29, well under 2^128.
-        let res = calculate_swap_output(1_000_000_000, 1_000_000_000_000_000, 1_000_000_000_000_000, 30);
+        let res = calculate_swap_output(
+            1_000_000_000,
+            1_000_000_000_000_000,
+            1_000_000_000_000_000,
+            30,
+        );
         assert!(res.is_ok());
     }
-
-    // ---------- tokens_on_withdraw ----------
 
     #[test]
     fn withdraw_half_gets_half() {
