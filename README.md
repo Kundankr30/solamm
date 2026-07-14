@@ -1,8 +1,9 @@
-# solamm# solamm
+# solamm
 
 A constant-product Automated Market Maker (AMM) built on Solana using the Anchor framework. Inspired by Uniswap v2, solamm allows anyone to create liquidity pools for SPL token pairs, provide liquidity and earn swap fees, swap tokens against the x*y=k invariant, and remove liquidity to redeem their proportional share.
 
 Built with Rust, Anchor 1.0.2, and anchor-spl 1.1.1.
+![Architecture](img2.png)
 
 ---
 
