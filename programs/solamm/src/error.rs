@@ -22,4 +22,10 @@ pub enum AmmCode {
 
     #[msg("Slippage tolerance exceeded. Minimum output not reached.")]
     SlippageExceeded,
+
+    #[msg("Invalid token account owner.")]
+    InvalidOwner,
+
+    #[msg("Invalid token account mint.")]
+    InvalidMint,
 }

@@ -37,6 +37,18 @@ pub fn remove_liquidity_handler(
     min_a_out: u64,
     min_b_out: u64,
 ) -> Result<()> {
+    // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
+    require_keys_eq!(ctx.accounts.user_token_a.mint, ctx.accounts.pool.mint_a, AmmCode::InvalidMint);
+    require_keys_eq!(ctx.accounts.user_token_a.owner, ctx.accounts.user.key(), AmmCode::InvalidOwner);
+
+    // Verify that user_token_b matches the pool's mint_b and is owned by the signer (user)
+    require_keys_eq!(ctx.accounts.user_token_b.mint, ctx.accounts.pool.mint_b, AmmCode::InvalidMint);
+    require_keys_eq!(ctx.accounts.user_token_b.owner, ctx.accounts.user.key(), AmmCode::InvalidOwner);
+
+    // Verify that user_lp_account matches the pool's lp_mint and is owned by the signer (user)
+    require_keys_eq!(ctx.accounts.user_lp_account.mint, ctx.accounts.pool.lp_mint, AmmCode::InvalidMint);
+    require_keys_eq!(ctx.accounts.user_lp_account.owner, ctx.accounts.user.key(), AmmCode::InvalidOwner);
+
     let (token_a_out, token_b_out) = tokens_on_withdraw(
         lp_amount,
         ctx.accounts.vault_a.amount,

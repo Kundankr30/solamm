@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solamm = "GCuuqz4THCtS76xqQrqkvrVPsYwiWsfVvWBk6ABCJKvB"
+solamm = "8PvHhUn7m3wGk1Gjd8SLyok2SsY4hJt8gddVbksGqV7u"
 
 [provider]
 cluster = "devnet"
