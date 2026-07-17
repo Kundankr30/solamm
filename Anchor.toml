@@ -9,7 +9,7 @@ skip-lint = false
 solamm = "8PvHhUn7m3wGk1Gjd8SLyok2SsY4hJt8gddVbksGqV7u"
 
 [provider]
-cluster = "devnet"
+cluster = "https://devnet.helius-rpc.com/?api-key=ee0beb77-482c-41b4-8212-81d000709581"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
