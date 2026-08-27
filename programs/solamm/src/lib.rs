@@ -6,7 +6,7 @@ pub mod state;
 
 use anchor_lang::prelude::*;
 
-declare_id!("8PvHhUn7m3wGk1Gjd8SLyok2SsY4hJt8gddVbksGqV7u");
+declare_id!("6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP");
 
 pub use instructions::*;
 #[program]
