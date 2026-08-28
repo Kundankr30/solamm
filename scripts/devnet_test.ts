@@ -27,7 +27,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-const PROGRAM_ID = new PublicKey("GCuuqz4THCtS76xqQrqkvrVPsYwiWsfVvWBk6ABCJKvB");
+const PROGRAM_ID = new PublicKey("6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP");
 const RPC = "https://devnet.helius-rpc.com/?api-key=ee0beb77-482c-41b4-8212-81d000709581";
 
 function loadWallet(): Keypair {

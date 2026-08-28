@@ -16,7 +16,7 @@ interface SolanaProviderProps {
 }
 
 export const SolanaProvider: FC<SolanaProviderProps> = ({ children }) => {
-  // The network can be set to 'devnet', 'testnet', or 'mainnet'
+  // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
   const network = WalletAdapterNetwork.Devnet;
 
   // You can also provide a custom RPC endpoint
