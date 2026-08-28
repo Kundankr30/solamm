@@ -3,7 +3,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { ArrowDownUp, Settings, ChevronDown, Loader2 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, getMint } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -36,11 +36,35 @@ export function Swap() {
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [customSlippage, setCustomSlippage] = useState("");
   const [priorityFee, setPriorityFee] = useState("Fast");
+  const [customAddress, setCustomAddress] = useState("");
+  const [isFetchingMint, setIsFetchingMint] = useState(false);
 
   const openTokenModal = (type: "pay" | "receive") => {
     setSelectingFor(type);
     setIsTokenModalOpen(true);
+  };
+
+  const handleCustomTokenSubmit = async () => {
+    try {
+      const pubkey = new PublicKey(customAddress);
+      setIsFetchingMint(true);
+      const mint = await getMint(connection, pubkey);
+      const customToken = { 
+        symbol: "CUSTOM", 
+        name: "Custom Token", 
+        address: customAddress, 
+        decimals: mint.decimals, 
+        icon: "https://s2.coinmarketcap.com/static/img/coins/64x64/1.png" 
+      };
+      handleSelectToken(customToken);
+      setCustomAddress("");
+    } catch (err) {
+      toast.error("Invalid Solana Address or Mint Not Found");
+    } finally {
+      setIsFetchingMint(false);
+    }
   };
 
   const handleSelectToken = (token: typeof MOCK_TOKENS[0]) => {
@@ -110,6 +134,10 @@ export function Swap() {
         const amountOutRaw = (amountInWithFee * reserveOut) / (reserveIn + amountInWithFee);
         const uiAmountOut = amountOutRaw / Math.pow(10, receiveToken.decimals);
 
+        const spotPrice = reserveOut / reserveIn;
+        const executionPrice = amountOutRaw / amountInRaw;
+        const priceImpact = spotPrice > 0 ? Math.max(0, (1 - (executionPrice / spotPrice)) * 100) : 0;
+
         setQuoteResponse({
           amountInRaw,
           amountOutRaw,
@@ -117,7 +145,9 @@ export function Swap() {
           vaultA,
           vaultB,
           mintA,
-          aToB
+          mintB,
+          aToB,
+          priceImpact
         });
         setReceiveAmount(uiAmountOut.toFixed(receiveToken.decimals));
 
@@ -149,9 +179,7 @@ export function Swap() {
       )[0];
 
       const userTokenA = getAssociatedTokenAddressSync(quoteResponse.mintA, publicKey);
-      const mintB = quoteResponse.mintA.equals(new PublicKey(MOCK_TOKENS[0].address))
-         ? new PublicKey(MOCK_TOKENS[1].address)
-         : new PublicKey(MOCK_TOKENS[0].address);
+      const mintB = quoteResponse.mintB;
       const userTokenB = getAssociatedTokenAddressSync(mintB, publicKey);
 
       const slippageNum = Number(slippage) || 0.5;
@@ -269,13 +297,31 @@ export function Swap() {
               Connect Wallet
             </Button>
           ) : (
-            <Button
-              onClick={executeSwap}
-              disabled={isSwapping || !quoteResponse}
-              className="w-full bg-[#f94119] hover:bg-[#e03a16] disabled:opacity-50 disabled:cursor-not-allowed text-white h-14 text-lg font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(249,65,25,0.3)] hover:shadow-[0_0_25px_rgba(249,65,25,0.5)]"
-            >
-              {isSwapping ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Swapping...</> : "Swap"}
-            </Button>
+            <div className="flex flex-col gap-3">
+              {quoteResponse && quoteResponse.priceImpact > 1 && (
+                <div className={`text-sm flex justify-between px-2 ${quoteResponse.priceImpact > 5 ? "text-red-500 font-bold" : "text-yellow-500"}`}>
+                  <span>Price Impact</span>
+                  <span>{quoteResponse.priceImpact.toFixed(2)}%</span>
+                </div>
+              )}
+              <Button
+                onClick={executeSwap}
+                disabled={!quoteResponse || isSwapping || isQuoting || (quoteResponse && quoteResponse.priceImpact > 15)}
+                className="w-full bg-[#f94119] hover:bg-[#e03a16] disabled:opacity-50 disabled:cursor-not-allowed text-white h-14 text-lg font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(249,65,25,0.3)] hover:shadow-[0_0_25px_rgba(249,65,25,0.5)]"
+              >
+                {isSwapping ? (
+                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Swapping...</>
+                ) : isQuoting ? (
+                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Fetching price...</>
+                ) : !quoteResponse && Number(payAmount) > 0 ? (
+                  "Pool Does Not Exist"
+                ) : quoteResponse && quoteResponse.priceImpact > 15 ? (
+                  "Price Impact Too High"
+                ) : (
+                  "Swap"
+                )}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -299,6 +345,21 @@ export function Swap() {
                 </div>
               </button>
             ))}
+            <div className="mt-4 pt-4 border-t border-[#333]">
+              <span className="text-sm text-gray-400 mb-2 block">Or paste custom Mint Address:</span>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={customAddress}
+                  onChange={(e) => setCustomAddress(e.target.value)}
+                  placeholder="Paste Solana address..." 
+                  className="flex-1 bg-[#222] border border-[#333] rounded-md px-3 py-2 text-sm text-white outline-none focus:border-[#f94119]"
+                />
+                <Button onClick={handleCustomTokenSubmit} disabled={isFetchingMint} className="bg-[#333] hover:bg-[#444] text-white">
+                  {isFetchingMint ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -317,9 +378,12 @@ export function Swap() {
                 {["0.1", "0.5", "1.0"].map(val => (
                   <Button
                     key={val}
-                    variant={slippage === val ? "default" : "secondary"}
-                    onClick={() => setSlippage(val)}
-                    className={slippage === val
+                    variant={slippage === val && !customSlippage ? "default" : "secondary"}
+                    onClick={() => {
+                      setSlippage(val);
+                      setCustomSlippage("");
+                    }}
+                    className={slippage === val && !customSlippage
                       ? "bg-[#f94119] hover:bg-[#e03a16] text-white flex-1"
                       : "bg-[#222] hover:bg-[#333] text-gray-300 flex-1 border border-[#333]"}
                   >
@@ -329,8 +393,12 @@ export function Swap() {
                 <div className="relative flex-1">
                   <input
                     type="number"
-                    value={!["0.1", "0.5", "1.0"].includes(slippage) ? slippage : ""}
-                    onChange={(e) => setSlippage(e.target.value)}
+                    value={customSlippage}
+                    onChange={(e) => {
+                      setCustomSlippage(e.target.value);
+                      if (e.target.value) setSlippage(e.target.value);
+                      else setSlippage("0.5");
+                    }}
                     placeholder="=p"
                     className="w-full bg-[#222] border border-[#333] rounded-md h-9 px-3 py-1 text-sm text-white focus:outline-none focus:border-[#f94119] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-500"
                   />

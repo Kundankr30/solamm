@@ -3,9 +3,10 @@ import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Plus, Settings, ChevronDown, ArrowLeft, Loader2 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction, TOKEN_PROGRAM_ID, getMint } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import { Card, CardContent } from "../components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { NavLink } from "react-router-dom";
 import { getProgram, PROGRAM_ID } from "../lib/program";
@@ -25,16 +26,63 @@ export function Liquidity() {
   const [isAdding, setIsAdding] = useState(false);
   const [ratio, setRatio] = useState<number | null>(null);
 
-  const tokenA = MOCK_TOKENS[0];
-  const tokenB = MOCK_TOKENS[1];
+  const [tokenA, setTokenA] = useState(MOCK_TOKENS[0]);
+  const [tokenB, setTokenB] = useState(MOCK_TOKENS[1]);
+
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
+  const [selectingFor, setSelectingFor] = useState<"A" | "B">("A");
+  const [customAddress, setCustomAddress] = useState("");
+  const [isFetchingMint, setIsFetchingMint] = useState(false);
+
+  const openTokenModal = (type: "A" | "B") => {
+    setSelectingFor(type);
+    setIsTokenModalOpen(true);
+  };
+
+  const handleCustomTokenSubmit = async () => {
+    try {
+      const pubkey = new PublicKey(customAddress);
+      setIsFetchingMint(true);
+      const mint = await getMint(connection, pubkey);
+      const customToken = { 
+        symbol: "CUSTOM", 
+        name: "Custom Token", 
+        address: customAddress, 
+        decimals: mint.decimals, 
+        icon: "https://s2.coinmarketcap.com/static/img/coins/64x64/1.png" 
+      };
+      handleSelectToken(customToken);
+      setCustomAddress("");
+    } catch (err) {
+      toast.error("Invalid Solana Address or Mint Not Found");
+    } finally {
+      setIsFetchingMint(false);
+    }
+  };
+
+  const handleSelectToken = (token: typeof MOCK_TOKENS[0]) => {
+    if (selectingFor === "A") {
+      if (token.address === tokenB.address) setTokenB(tokenA);
+      setTokenA(token);
+    } else {
+      if (token.address === tokenA.address) setTokenA(tokenB);
+      setTokenB(token);
+    }
+    setIsTokenModalOpen(false);
+  };
 
   useEffect(() => {
     // Fetch ratio
     const fetchRatio = async () => {
       try {
-        const mintA = new PublicKey(tokenA.address);
-        const mintB = new PublicKey(tokenB.address);
-        const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mintA.toBuffer(), mintB.toBuffer()], PROGRAM_ID)[0];
+        const mintAPub = new PublicKey(tokenA.address);
+        const mintBPub = new PublicKey(tokenB.address);
+        
+        const [mint1, mint2] = Buffer.compare(mintAPub.toBuffer(), mintBPub.toBuffer()) < 0 
+          ? [mintAPub, mintBPub] 
+          : [mintBPub, mintAPub];
+
+        const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mint1.toBuffer(), mint2.toBuffer()], PROGRAM_ID)[0];
         const vaultA = PublicKey.findProgramAddressSync([Buffer.from("vault_a"), poolPda.toBuffer()], PROGRAM_ID)[0];
         const vaultB = PublicKey.findProgramAddressSync([Buffer.from("vault_b"), poolPda.toBuffer()], PROGRAM_ID)[0];
 
@@ -42,10 +90,14 @@ export function Liquidity() {
         const vaultBBal = await connection.getTokenAccountBalance(vaultB);
 
         if (Number(vaultABal.value.amount) > 0) {
-          setRatio(Number(vaultBBal.value.amount) / Number(vaultABal.value.amount));
+          const ratio1To2 = Number(vaultBBal.value.amount) / Number(vaultABal.value.amount);
+          // If tokenA is mint1, ratio is mint2/mint1. If tokenA is mint2, ratio is mint1/mint2.
+          setRatio(mint1.equals(mintAPub) ? ratio1To2 : 1 / ratio1To2);
+        } else {
+          setRatio(null);
         }
       } catch (e) {
-        console.error("Failed to fetch ratio", e);
+        setRatio(null);
       }
     };
     fetchRatio();
@@ -76,25 +128,30 @@ export function Liquidity() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const program = getProgram(connection, wallet as any);
-      const mintA = new PublicKey(tokenA.address);
-      const mintB = new PublicKey(tokenB.address);
+      const mintAPub = new PublicKey(tokenA.address);
+      const mintBPub = new PublicKey(tokenB.address);
 
-      const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mintA.toBuffer(), mintB.toBuffer()], PROGRAM_ID)[0];
+      const [mint1, mint2] = Buffer.compare(mintAPub.toBuffer(), mintBPub.toBuffer()) < 0 
+        ? [mintAPub, mintBPub] 
+        : [mintBPub, mintAPub];
+
+      const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mint1.toBuffer(), mint2.toBuffer()], PROGRAM_ID)[0];
       const vaultA = PublicKey.findProgramAddressSync([Buffer.from("vault_a"), poolPda.toBuffer()], PROGRAM_ID)[0];
       const vaultB = PublicKey.findProgramAddressSync([Buffer.from("vault_b"), poolPda.toBuffer()], PROGRAM_ID)[0];
       const lpMint = PublicKey.findProgramAddressSync([Buffer.from("lp_mint"), poolPda.toBuffer()], PROGRAM_ID)[0];
       const authority = PublicKey.findProgramAddressSync([Buffer.from("authority"), poolPda.toBuffer()], PROGRAM_ID)[0];
 
-      const userTokenA = getAssociatedTokenAddressSync(mintA, publicKey);
-      const userTokenB = getAssociatedTokenAddressSync(mintB, publicKey);
+      const userTokenA = getAssociatedTokenAddressSync(mint1, publicKey);
+      const userTokenB = getAssociatedTokenAddressSync(mint2, publicKey);
       const userLp = getAssociatedTokenAddressSync(lpMint, publicKey);
 
-      const amountARaw = new BN(Number(amountA) * Math.pow(10, tokenA.decimals));
-      const amountBRaw = new BN(Number(amountB) * Math.pow(10, tokenB.decimals));
+      // AmountA and AmountB also need to be passed in the correct order to the program!
+      const amount1Raw = new BN(Number(mint1.equals(mintAPub) ? amountA : amountB) * Math.pow(10, mint1.equals(mintAPub) ? tokenA.decimals : tokenB.decimals));
+      const amount2Raw = new BN(Number(mint2.equals(mintBPub) ? amountB : amountA) * Math.pow(10, mint2.equals(mintBPub) ? tokenB.decimals : tokenA.decimals));
       const minLp = new BN(0); // 0 slippage check for simplified demo
 
       const tx = await program.methods
-        .addLiquidity(amountARaw, amountBRaw, minLp)
+        .addLiquidity(amount1Raw, amount2Raw, minLp)
         .accounts({
           pool: poolPda,
           vaultA: vaultA,
@@ -104,7 +161,7 @@ export function Liquidity() {
           user: publicKey,
           userTokenA: userTokenA,
           userTokenB: userTokenB,
-          userLp: userLp,
+          userLpAccount: userLp,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .transaction();
@@ -170,7 +227,7 @@ export function Liquidity() {
                 onChange={(e) => handleAmountAChange(e.target.value)}
                 className="bg-transparent text-3xl font-medium text-white outline-none w-1/2 placeholder:text-gray-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <Button variant="secondary" className="bg-[#2A2A2A] hover:bg-[#333] border border-[#333] rounded-full px-3 py-1.5 h-auto font-semibold gap-2 shadow-sm">
+              <Button onClick={() => openTokenModal("A")} variant="secondary" className="bg-[#2A2A2A] hover:bg-[#333] border border-[#333] rounded-full px-3 py-1.5 h-auto font-semibold gap-2 shadow-sm">
                 <img src={tokenA.icon} alt={tokenA.symbol} className="w-6 h-6 rounded-full" />
                 <span className="text-white text-base">{tokenA.symbol}</span>
                 <ChevronDown className="w-4 h-4 text-gray-400 ml-1" />
@@ -196,7 +253,7 @@ export function Liquidity() {
                 onChange={(e) => handleAmountBChange(e.target.value)}
                 className="bg-transparent text-3xl font-medium text-white outline-none w-1/2 placeholder:text-gray-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <Button variant="secondary" className="bg-[#2A2A2A] hover:bg-[#333] border border-[#333] rounded-full px-3 py-1.5 h-auto font-semibold gap-2 shadow-sm">
+              <Button onClick={() => openTokenModal("B")} variant="secondary" className="bg-[#2A2A2A] hover:bg-[#333] border border-[#333] rounded-full px-3 py-1.5 h-auto font-semibold gap-2 shadow-sm">
                 <img src={tokenB.icon} alt={tokenB.symbol} className="w-6 h-6 rounded-full" />
                 <span className="text-white text-base">{tokenB.symbol}</span>
                 <ChevronDown className="w-4 h-4 text-gray-400 ml-1" />
@@ -219,6 +276,44 @@ export function Liquidity() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isTokenModalOpen} onOpenChange={setIsTokenModalOpen}>
+        <DialogContent className="bg-[#111] border-[#222] text-white">
+          <DialogHeader>
+            <DialogTitle>Select a token</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 flex flex-col gap-2">
+            {KNOWN_TOKENS.map((token) => (
+              <button
+                key={token.address}
+                onClick={() => handleSelectToken(token)}
+                className="flex items-center gap-3 w-full p-3 hover:bg-[#222] rounded-xl transition-colors text-left"
+              >
+                <img src={token.icon} alt={token.symbol} className="w-8 h-8 rounded-full" />
+                <div className="flex flex-col items-start">
+                  <span className="font-semibold text-white">{token.symbol}</span>
+                  <span className="text-xs text-gray-400">{token.name}</span>
+                </div>
+              </button>
+            ))}
+            <div className="mt-4 pt-4 border-t border-[#333]">
+              <span className="text-sm text-gray-400 mb-2 block">Or paste custom Mint Address:</span>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={customAddress}
+                  onChange={(e) => setCustomAddress(e.target.value)}
+                  placeholder="Paste Solana address..." 
+                  className="flex-1 bg-[#222] border border-[#333] rounded-md px-3 py-2 text-sm text-white outline-none focus:border-[#f94119]"
+                />
+                <Button onClick={handleCustomTokenSubmit} disabled={isFetchingMint} className="bg-[#333] hover:bg-[#444] text-white">
+                  {isFetchingMint ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -16,7 +16,7 @@ type PoolData = {
   vaultABalance: string;
   vaultBBalance: string;
   myLpBalance: string;
-  exists: boolean;
+  exists: boolean | "rate_limited";
 };
 
 export function Pool() {
@@ -71,19 +71,41 @@ export function Pool() {
               pair: `${tokenA.symbol}-${tokenB.symbol}`,
               tokenA,
               tokenB,
-              vaultABalance: Number(vA.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 0 }) + " " + (mint1.equals(mintAPub) ? tokenA.symbol : tokenB.symbol),
-              vaultBBalance: Number(vB.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 0 }) + " " + (mint2.equals(mintBPub) ? tokenB.symbol : tokenA.symbol),
+              vaultABalance: Number(vA.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (mint1.equals(mintAPub) ? tokenA.symbol : tokenB.symbol),
+              vaultBBalance: Number(vB.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (mint2.equals(mintBPub) ? tokenB.symbol : tokenA.symbol),
               myLpBalance,
               exists: true
             };
-          } catch (e) {
+          } catch (e: any) {
+            // If it's a 429 Rate Limit, we want to retain the old pool state, not mark it as non-existent!
+            if (e.message && e.message.includes("429")) {
+              return { pair: `${tokenA.symbol}-${tokenB.symbol}`, tokenA, tokenB, vaultABalance: "", vaultBBalance: "", myLpBalance: "0", exists: "rate_limited" };
+            }
             // Pool does not exist
             return { pair: `${tokenA.symbol}-${tokenB.symbol}`, tokenA, tokenB, vaultABalance: "", vaultBBalance: "", myLpBalance: "0", exists: false };
           }
         });
 
         const results = await Promise.all(poolDataPromises);
-        setPools(results.filter(p => p.exists));
+        
+        setPools((prevPools) => {
+          const newPools = prevPools.map(pool => pool); // Clone prev
+          
+          results.forEach(res => {
+            if (res.exists === true) {
+              // Update or add valid pool
+              const existingIndex = newPools.findIndex(p => p.pair === res.pair);
+              if (existingIndex >= 0) newPools[existingIndex] = res as typeof newPools[0];
+              else newPools.push(res as typeof newPools[0]);
+            } else if (res.exists === false) {
+              // Definitely doesn't exist, remove it if it was there
+              const existingIndex = newPools.findIndex(p => p.pair === res.pair);
+              if (existingIndex >= 0) newPools.splice(existingIndex, 1);
+            }
+            // If res.exists === "rate_limited", we just do nothing and keep the old state!
+          });
+          return newPools;
+        });
       } catch (err) {
         console.error("Failed to fetch pools", err);
       } finally {

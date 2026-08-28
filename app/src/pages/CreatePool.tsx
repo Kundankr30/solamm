@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { ArrowLeft, ChevronDown, Plus, Loader2 } from "lucide-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import { Card, CardContent } from "../components/ui/card";
@@ -98,7 +98,7 @@ export function CreatePool() {
           payer: publicKey,
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
-          // rent is automatically handled by Anchor 0.29+ usually, but we might need SYSVAR_RENT
+          rent: SYSVAR_RENT_PUBKEY,
         })
         .transaction();
 
