@@ -3,7 +3,9 @@ import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import idl from "../idl/solamm.json";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
-export const PROGRAM_ID = new PublicKey("6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP");
+export const PROGRAM_ID = new PublicKey(
+  import.meta.env.VITE_PROGRAM_ID || "6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP"
+);
 
 export function getProgram(connection: Connection, wallet: WalletContextState) {
   if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) {

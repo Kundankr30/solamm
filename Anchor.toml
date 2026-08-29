@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solamm = "8PvHhUn7m3wGk1Gjd8SLyok2SsY4hJt8gddVbksGqV7u"
+solamm = "6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP"
 
 [provider]
-cluster = "https://devnet.helius-rpc.com/?api-key=ee0beb77-482c-41b4-8212-81d000709581"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
