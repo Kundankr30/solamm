@@ -61,7 +61,7 @@ pub fn remove_liquidity_handler(
     require!(token_b_out >= min_b_out, AmmCode::SlippageExceeded);
     burn(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             Burn {
                 mint: ctx.accounts.lp_mint.to_account_info(),
                 from: ctx.accounts.user_lp_account.to_account_info(),
@@ -76,7 +76,7 @@ pub fn remove_liquidity_handler(
     let signer = &[seeds];
     transfer(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             Transfer {
                 from: ctx.accounts.vault_a.to_account_info(),
                 to: ctx.accounts.user_token_a.to_account_info(),
@@ -88,7 +88,7 @@ pub fn remove_liquidity_handler(
     )?;
     transfer(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             Transfer {
                 from: ctx.accounts.vault_b.to_account_info(),
                 to: ctx.accounts.user_token_b.to_account_info(),

@@ -58,7 +58,7 @@ pub fn swap_handler(
     if a_to_b {
         transfer(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Transfer {
                     from: ctx.accounts.user_token_a.to_account_info(),
                     to: ctx.accounts.vault_a.to_account_info(),
@@ -70,7 +70,7 @@ pub fn swap_handler(
     } else {
         transfer(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Transfer {
                     from: ctx.accounts.user_token_b.to_account_info(),
                     to: ctx.accounts.vault_b.to_account_info(),
@@ -87,7 +87,7 @@ pub fn swap_handler(
     if a_to_b {
         transfer(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Transfer {
                     from: ctx.accounts.vault_b.to_account_info(),
                     to: ctx.accounts.user_token_b.to_account_info(),
@@ -100,7 +100,7 @@ pub fn swap_handler(
     } else {
         transfer(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Transfer {
                     from: ctx.accounts.vault_a.to_account_info(),
                     to: ctx.accounts.user_token_a.to_account_info(),

@@ -103,7 +103,7 @@ pub fn add_liquidity_handler(
     require!(lp_to_mint >= min_lp_out, AmmCode::SlippageExceeded);
     transfer(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             Transfer {
                 from: ctx.accounts.user_token_a.to_account_info(),
                 to: ctx.accounts.vault_a.to_account_info(),
@@ -114,7 +114,7 @@ pub fn add_liquidity_handler(
     )?;
     transfer(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             Transfer {
                 from: ctx.accounts.user_token_b.to_account_info(),
                 to: ctx.accounts.vault_b.to_account_info(),
@@ -129,7 +129,7 @@ pub fn add_liquidity_handler(
     let signer = &[seeds];
     mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_program.key(),
             MintTo {
                 mint: ctx.accounts.lp_mint.to_account_info(),
                 to: ctx.accounts.user_lp_account.to_account_info(),
