@@ -251,6 +251,14 @@ export function Swap() {
 
       const signature = await sendTransaction(tx, connection);
       console.log(`Swap transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      
+      const latestBlockhash = await connection.getLatestBlockhash();
+      await connection.confirmTransaction({
+        signature,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, 'confirmed');
+
       toast.success("Swap successful!", {
         description: `Tx: ${signature.slice(0,8)}...${signature.slice(-8)}`,
         action: { label: "View on Explorer", onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=devnet`, "_blank") }
@@ -289,7 +297,13 @@ export function Swap() {
               <input
                 type="text"
                 value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow empty, or valid positive float numbers
+                  if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                    setPayAmount(val);
+                  }
+                }}
                 placeholder="0.0"
                 className="bg-transparent text-3xl text-white outline-none w-1/2 placeholder:text-gray-600 font-medium"
               />
@@ -440,11 +454,14 @@ export function Swap() {
                     type="number"
                     value={customSlippage}
                     onChange={(e) => {
-                      setCustomSlippage(e.target.value);
-                      if (e.target.value) setSlippage(e.target.value);
+                      let val = e.target.value;
+                      if (Number(val) > 50) val = "50";
+                      if (Number(val) < 0) val = "0";
+                      setCustomSlippage(val);
+                      if (val) setSlippage(val);
                       else setSlippage("0.5");
                     }}
-                    placeholder="=p"
+                    placeholder="Custom"
                     className="w-full bg-[#222] border border-[#333] rounded-md h-9 px-3 py-1 text-sm text-white focus:outline-none focus:border-[#f94119] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-500"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>

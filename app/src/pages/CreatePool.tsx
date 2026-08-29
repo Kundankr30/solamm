@@ -104,6 +104,14 @@ export function CreatePool() {
 
       const signature = await sendTransaction(tx, connection);
       console.log(`Create Pool TX: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+
+      const latestBlockhash = await connection.getLatestBlockhash();
+      await connection.confirmTransaction({
+        signature,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, 'confirmed');
+
       toast.success("Pool Created Successfully!", {
         description: `Tx: ${signature.slice(0,8)}...${signature.slice(-8)}`,
         action: { label: "View on Explorer", onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=devnet`, "_blank") }

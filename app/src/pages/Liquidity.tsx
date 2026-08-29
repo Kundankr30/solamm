@@ -227,6 +227,14 @@ export function Liquidity() {
 
       const signature = await sendTransaction(tx, connection);
       console.log(`Add Liquidity TX: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+
+      const latestBlockhash = await connection.getLatestBlockhash();
+      await connection.confirmTransaction({
+        signature,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, 'confirmed');
+
       toast.success("Liquidity added!", {
         description: `Tx: ${signature.slice(0,8)}...${signature.slice(-8)}`,
         action: { label: "View on Explorer", onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=devnet`, "_blank") }
@@ -319,6 +327,14 @@ export function Liquidity() {
 
       const signature = await sendTransaction(tx, connection);
       console.log(`Remove Liquidity TX: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      
+      const latestBlockhash = await connection.getLatestBlockhash();
+      await connection.confirmTransaction({
+        signature,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, 'confirmed');
+
       toast.success("Liquidity removed!", {
         description: `Tx: ${signature.slice(0,8)}...${signature.slice(-8)}`,
         action: { label: "View on Explorer", onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=devnet`, "_blank") }
@@ -553,11 +569,14 @@ return (
                     type="number"
                     value={customSlippage}
                     onChange={(e) => {
-                      setCustomSlippage(e.target.value);
-                      if (e.target.value) setSlippage(e.target.value);
+                      let val = e.target.value;
+                      if (Number(val) > 50) val = "50";
+                      if (Number(val) < 0) val = "0";
+                      setCustomSlippage(val);
+                      if (val) setSlippage(val);
                       else setSlippage("0.5");
                     }}
-                    placeholder=""
+                    placeholder="Custom"
                     className="w-full bg-[#222] border border-[#333] rounded-md h-9 px-3 py-1 text-sm text-white focus:outline-none focus:border-[#f94119] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-500"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
