@@ -37,6 +37,8 @@ pub fn remove_liquidity_handler(
     min_a_out: u64,
     min_b_out: u64,
 ) -> Result<()> {
+    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
+
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(ctx.accounts.user_token_a.mint, ctx.accounts.pool.mint_a, AmmCode::InvalidMint);
     require_keys_eq!(ctx.accounts.user_token_a.owner, ctx.accounts.user.key(), AmmCode::InvalidOwner);
@@ -59,7 +61,7 @@ pub fn remove_liquidity_handler(
     require!(token_b_out >= min_b_out, AmmCode::SlippageExceeded);
     burn(
         CpiContext::new(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             Burn {
                 mint: ctx.accounts.lp_mint.to_account_info(),
                 from: ctx.accounts.user_lp_account.to_account_info(),
@@ -74,7 +76,7 @@ pub fn remove_liquidity_handler(
     let signer = &[seeds];
     transfer(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.vault_a.to_account_info(),
                 to: ctx.accounts.user_token_a.to_account_info(),
@@ -86,7 +88,7 @@ pub fn remove_liquidity_handler(
     )?;
     transfer(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.vault_b.to_account_info(),
                 to: ctx.accounts.user_token_b.to_account_info(),

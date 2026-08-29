@@ -12,7 +12,8 @@ pub struct Pool {
     pub bump: u8,           //1bytes
     pub authority_bump: u8, //1bytes
     pub lp_mint_bump: u8,   //1bytes
+    pub is_paused: bool,    //1bytes
 }
 impl Pool {
-    pub const LEN: usize = 8 + 32 * 6 + 8 + 3;
+    pub const LEN: usize = 8 + 32 * 6 + 8 + 3 + 1;
 }

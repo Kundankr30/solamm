@@ -50,6 +50,8 @@ pub fn add_liquidity_handler(
     amount_b: u64,
     min_lp_out: u64,
 ) -> Result<()> {
+    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
+
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(
         ctx.accounts.user_token_a.mint,
@@ -101,7 +103,7 @@ pub fn add_liquidity_handler(
     require!(lp_to_mint >= min_lp_out, AmmCode::SlippageExceeded);
     transfer(
         CpiContext::new(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.user_token_a.to_account_info(),
                 to: ctx.accounts.vault_a.to_account_info(),
@@ -112,7 +114,7 @@ pub fn add_liquidity_handler(
     )?;
     transfer(
         CpiContext::new(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.user_token_b.to_account_info(),
                 to: ctx.accounts.vault_b.to_account_info(),
@@ -127,7 +129,7 @@ pub fn add_liquidity_handler(
     let signer = &[seeds];
     mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.key(),
+            ctx.accounts.token_program.to_account_info(),
             MintTo {
                 mint: ctx.accounts.lp_mint.to_account_info(),
                 to: ctx.accounts.user_lp_account.to_account_info(),

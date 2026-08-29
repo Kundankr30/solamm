@@ -73,5 +73,6 @@ pub fn handler(ctx: Context<InitPool>, fee_bps: u64) -> Result<()> {
     pool.bump = ctx.bumps.pool;
     pool.authority_bump = ctx.bumps.authority;
     pool.lp_mint_bump = ctx.bumps.lp_mint;
+    pool.is_paused = false;
     Ok(())
 }

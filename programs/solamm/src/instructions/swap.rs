@@ -33,6 +33,8 @@ pub fn swap_handler(
     min_amount_out: u64,
     a_to_b: bool,
 ) -> Result<()> {
+    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
+
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(ctx.accounts.user_token_a.mint, ctx.accounts.pool.mint_a, AmmCode::InvalidMint);
     require_keys_eq!(ctx.accounts.user_token_a.owner, ctx.accounts.user.key(), AmmCode::InvalidOwner);
@@ -56,7 +58,7 @@ pub fn swap_handler(
     if a_to_b {
         transfer(
             CpiContext::new(
-                ctx.accounts.token_program.key(),
+                ctx.accounts.token_program.to_account_info(),
                 Transfer {
                     from: ctx.accounts.user_token_a.to_account_info(),
                     to: ctx.accounts.vault_a.to_account_info(),
@@ -68,7 +70,7 @@ pub fn swap_handler(
     } else {
         transfer(
             CpiContext::new(
-                ctx.accounts.token_program.key(),
+                ctx.accounts.token_program.to_account_info(),
                 Transfer {
                     from: ctx.accounts.user_token_b.to_account_info(),
                     to: ctx.accounts.vault_b.to_account_info(),
@@ -85,7 +87,7 @@ pub fn swap_handler(
     if a_to_b {
         transfer(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.key(),
+                ctx.accounts.token_program.to_account_info(),
                 Transfer {
                     from: ctx.accounts.vault_b.to_account_info(),
                     to: ctx.accounts.user_token_b.to_account_info(),
@@ -98,7 +100,7 @@ pub fn swap_handler(
     } else {
         transfer(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.key(),
+                ctx.accounts.token_program.to_account_info(),
                 Transfer {
                     from: ctx.accounts.vault_a.to_account_info(),
                     to: ctx.accounts.user_token_a.to_account_info(),
