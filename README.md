@@ -110,18 +110,31 @@ anchor build
 
 ## Deployment
 
-The program is deployed on **Solana devnet** via [Helius](https://helius.dev) RPC.
+### Smart Contract (Devnet)
+The program is deployed on **Solana Devnet**.
 
-- **Program ID:** `GCuuqz4THCtS76xqQrqkvrVPsYwiWsfVvWBk6ABCJKvB`
-- **RPC:** `https://devnet.helius-rpc.com`
-- **Explorer:** [View on Solana Explorer](https://explorer.solana.com/address/GCuuqz4THCtS76xqQrqkvrVPsYwiWsfVvWBk6ABCJKvB?cluster=devnet)
+- **Program ID:** `6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP`
+- **Explorer:** [View on Solana Explorer](https://explorer.solana.com/address/6gvRLzRPYY2NBLuAX9ZeaFQw6iNF9czfGKFscfPfcgNP?cluster=devnet)
 
-### Deploy command
-
+#### Deploy command
 ```bash
 anchor build
 anchor deploy --provider.cluster devnet
 ```
+
+### Frontend (Vercel)
+The React/Vite frontend is built for easy deployment to Vercel or Netlify.
+
+**Live Demo:** [solamm.vercel.app](https://solamm.vercel.app)
+
+#### How to deploy your own frontend:
+1. Connect your GitHub repository to Vercel.
+2. Set the **Root Directory** to `app`.
+3. Set the **Build Command** to `npm run build`.
+4. **Enable the Faucet:** To allow testers to automatically get fake Devnet tokens (SOL, USDC, BONK, JUP) on your site, you must add your Devnet wallet's secret key array to your Vercel **Environment Variables**:
+   * **Key:** `VITE_FAUCET_SECRET_KEY`
+   * **Value:** `[YOUR_SECRET_KEY_ARRAY]`
+   *(The app uses this keypair behind the scenes to sign and pay for `mintTo` airdrops entirely on the user's behalf!)*
 
 ---
 
