@@ -1,5 +1,6 @@
 import { ArrowUpRight, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NavLink } from "react-router-dom";
 
 export function Home() {
   return (
@@ -21,14 +22,18 @@ export function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-16">
-            <Button size="lg" className="h-14 px-8 text-sm font-semibold tracking-wider bg-gradient-to-r from-[#f94119] to-[#d63211] hover:from-[#d63211] hover:to-[#c22d10] text-white w-full sm:w-auto uppercase rounded-none transition-all shadow-[0_0_20px_rgba(249,65,25,0.2)] border-0">
-              Start Swapping
-              <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-sm font-semibold tracking-wider border-[#333333] text-white w-full sm:w-auto uppercase rounded-none bg-transparent">
-              <Terminal className="mr-2 h-4 w-4 text-[#a3a3a3]" />
-              Explore Pools
-            </Button>
+            <NavLink to="/swap" className="w-full sm:w-auto">
+              <Button size="lg" className="h-14 px-8 text-sm font-semibold tracking-wider bg-gradient-to-r from-[#f94119] to-[#d63211] hover:from-[#d63211] hover:to-[#c22d10] text-white w-full uppercase rounded-none transition-all shadow-[0_0_20px_rgba(249,65,25,0.2)] border-0">
+                Start Swapping
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </NavLink>
+            <NavLink to="/pool" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="h-14 px-8 text-sm font-semibold tracking-wider border-[#333333] text-white w-full uppercase rounded-none bg-transparent">
+                <Terminal className="mr-2 h-4 w-4 text-[#a3a3a3]" />
+                Explore Pools
+              </Button>
+            </NavLink>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-[10px] md:text-xs text-[#737373] tracking-widest uppercase">
@@ -72,68 +77,68 @@ export function Home() {
             {/* Filters */}
             <div className="flex gap-2 p-4 border-b border-[#1f242d]">
               <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm">
-                Token: <span className="text-white">All</span>
+                Network: <span className="text-white">Devnet</span>
               </div>
 
               <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm">
-                TVL: <span className="text-white">&gt; $500K</span>
-              </div>
-
-              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm">
-                Network: <span className="text-white">Solana</span>
+                Status: <span className="text-white">Operational</span>
               </div>
             </div>
 
             {/* Table Header */}
             <div className="grid grid-cols-12 px-4 py-3 text-[#8b949e] border-b border-[#1f242d] uppercase text-[10px] tracking-wider">
-              <div className="col-span-3">Pool</div>
-              <div className="col-span-3">TVL</div>
-              <div className="col-span-3">Volume 24H</div>
-              <div className="col-span-3">APR</div>
+              <div className="col-span-4">Pool Pair</div>
+              <div className="col-span-5">Token Mints</div>
+              <div className="col-span-3">Status</div>
             </div>
 
             {/* SOL / USDC */}
             <div className="grid grid-cols-12 px-4 py-4 border-b border-[#1f242d] items-center hover:bg-[#15191f] transition-colors">
-
-              <div className="col-span-3 flex items-center gap-2 text-white">
+              <div className="col-span-4 flex items-center gap-2 text-white">
                 <div className="w-1.5 h-1.5 bg-[#4e46e5]"></div>
                 SOL / USDC
               </div>
-
-              <div className="col-span-3 text-white">
-                $4.82M
+              <div className="col-span-5 text-[#8b949e] text-[10px]">
+                3viD...ZSYk<br />
+                FnCU...kV8t
               </div>
-
-              <div className="col-span-3 text-white">
-                $12.4M
-              </div>
-
               <div className="col-span-3">
                 <span className="px-1.5 py-0.5 border border-[#46a758]/30 text-[#46a758] text-[10px]">
-                  18.4%
+                  Active
                 </span>
               </div>
             </div>
 
-            {/* RAY / SOL */}
+            {/* JUP / USDC */}
             <div className="grid grid-cols-12 px-4 py-4 border-b border-[#1f242d] items-center hover:bg-[#15191f] transition-colors">
-
-              <div className="col-span-3 flex items-center gap-2 text-white">
-                <div className="w-1.5 h-1.5 bg-[#8b5cf6]"></div>
-                RAY / SOL
+              <div className="col-span-4 flex items-center gap-2 text-white">
+                <div className="w-1.5 h-1.5 bg-[#25d366]"></div>
+                JUP / USDC
               </div>
-
-              <div className="col-span-3 text-white">
-                $1.24M
+              <div className="col-span-5 text-[#8b949e] text-[10px]">
+                HGuE...2BiW<br />
+                FnCU...kV8t
               </div>
-
-              <div className="col-span-3 text-white">
-                $840K
-              </div>
-
               <div className="col-span-3">
-                <span className="px-1.5 py-0.5 border border-[#8b5cf6]/30 text-[#8b5cf6] text-[10px]">
-                  24.7%
+                <span className="px-1.5 py-0.5 border border-[#46a758]/30 text-[#46a758] text-[10px]">
+                  Active
+                </span>
+              </div>
+            </div>
+
+            {/* BONK / SOL */}
+            <div className="grid grid-cols-12 px-4 py-4 border-b border-[#1f242d] items-center hover:bg-[#15191f] transition-colors">
+              <div className="col-span-4 flex items-center gap-2 text-white">
+                <div className="w-1.5 h-1.5 bg-[#f97316]"></div>
+                BONK / SOL
+              </div>
+              <div className="col-span-5 text-[#8b949e] text-[10px]">
+                2A5H...DLEs<br />
+                3viD...ZSYk
+              </div>
+              <div className="col-span-3">
+                <span className="px-1.5 py-0.5 border border-[#46a758]/30 text-[#46a758] text-[10px]">
+                  Active
                 </span>
               </div>
             </div>
