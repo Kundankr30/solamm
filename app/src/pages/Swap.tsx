@@ -38,6 +38,8 @@ export function Swap() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
   const [customSlippage, setCustomSlippage] = useState("");
+  const [payBalance, setPayBalance] = useState("0.00");
+  const [receiveBalance, setReceiveBalance] = useState("0.00");
   const [customAddress, setCustomAddress] = useState("");
   const [isFetchingMint, setIsFetchingMint] = useState(false);
   const [insufficientLiquidity, setInsufficientLiquidity] = useState(false);
@@ -91,6 +93,47 @@ export function Swap() {
   };
 
   // Real fetch quotes from devnet
+  
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (!publicKey) {
+        setPayBalance("0.00");
+        setReceiveBalance("0.00");
+        return;
+      }
+
+      try {
+        const payMint = new PublicKey(payToken.address);
+        const receiveMint = new PublicKey(receiveToken.address);
+        
+        const payAta = getAssociatedTokenAddressSync(payMint, publicKey);
+        const receiveAta = getAssociatedTokenAddressSync(receiveMint, publicKey);
+
+        try {
+          const pb = await connection.getTokenAccountBalance(payAta);
+          setPayBalance(pb.value.uiAmountString || "0.00");
+        } catch (e) {
+          setPayBalance("0.00");
+        }
+
+        try {
+          const rb = await connection.getTokenAccountBalance(receiveAta);
+          setReceiveBalance(rb.value.uiAmountString || "0.00");
+        } catch (e) {
+          setReceiveBalance("0.00");
+        }
+
+      } catch (err) {
+        console.error("Failed to fetch balances", err);
+      }
+    };
+
+    fetchBalances();
+    // Set up polling every 5 seconds
+    const interval = setInterval(fetchBalances, 5000);
+    return () => clearInterval(interval);
+  }, [publicKey, payToken.address, receiveToken.address, connection]);
+
   useEffect(() => {
     if (!payAmount || isNaN(Number(payAmount)) || Number(payAmount) <= 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -292,7 +335,7 @@ export function Swap() {
           <div className="bg-[#1A1A1A] rounded-2xl p-4 mb-2 border border-[#222] hover:border-[#333] transition-colors focus-within:border-[#f94119]/50">
             <div className="flex justify-between mb-2">
               <span className="text-sm text-gray-400">You Pay</span>
-              <span className="text-sm text-gray-500">Balance: 0.00</span>
+              <span className="text-sm text-gray-500">Balance: {payBalance}</span>
             </div>
             <div className="flex items-center justify-between">
               <input
@@ -328,7 +371,7 @@ export function Swap() {
           <div className="bg-[#1A1A1A] rounded-2xl p-4 mt-2 mb-6 border border-[#222] hover:border-[#333] transition-colors">
             <div className="flex justify-between mb-2">
               <span className="text-sm text-gray-400">You Receive</span>
-              <span className="text-sm text-gray-500">Balance: 0.00</span>
+              <span className="text-sm text-gray-500">Balance: {receiveBalance}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center w-1/2">
