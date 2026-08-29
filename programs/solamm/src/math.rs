@@ -144,7 +144,10 @@ mod tests {
     #[test]
     fn initial_lp_floor() {
         // isqrt(4_000_000 * 9_000_000) = 6_000_000 - 1000 = 5_999_000
-        assert_eq!(calculate_initial_lp(4_000_000, 9_000_000).unwrap(), 5_999_000);
+        assert_eq!(
+            calculate_initial_lp(4_000_000, 9_000_000).unwrap(),
+            5_999_000
+        );
     }
 
     #[test]
