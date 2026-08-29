@@ -75,13 +75,21 @@ export function Home() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 p-4 border-b border-[#1f242d]">
-              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm">
+            <div className="flex flex-wrap gap-2 p-4 border-b border-[#1f242d]">
+              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm text-xs">
                 Network: <span className="text-white">Devnet</span>
               </div>
 
-              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm">
-                Status: <span className="text-white">Operational</span>
+              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm text-xs">
+                Status: <span className="text-[#46a758]">Operational</span>
+              </div>
+
+              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm text-xs">
+                Fee Tier: <span className="text-white">0.3%</span>
+              </div>
+              
+              <div className="px-2 py-1 bg-[#1a1f26] border border-[#2d333b] text-[#8b949e] rounded-sm text-xs">
+                Build: <span className="text-white">Alpha</span>
               </div>
             </div>
 
