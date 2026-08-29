@@ -28,4 +28,7 @@ pub enum AmmCode {
 
     #[msg("Invalid token account mint.")]
     InvalidMint,
+
+    #[msg("Pool is currently paused.")]
+    PoolPaused,
 }
