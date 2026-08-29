@@ -124,7 +124,7 @@ export function Liquidity() {
         const vaultBBal = await connection.getTokenAccountBalance(vaultB);
 
         if (Number(vaultABal.value.amount) > 0) {
-          const ratio1To2 = Number(vaultBBal.value.amount) / Number(vaultABal.value.amount);
+          const ratio1To2 = Number(vaultBBal.value.uiAmount) / Number(vaultABal.value.uiAmount);
           // If tokenA is mint1, ratio is mint2/mint1. If tokenA is mint2, ratio is mint1/mint2.
           setRatio(mint1.equals(mintAPub) ? ratio1To2 : 1 / ratio1To2);
         } else {
