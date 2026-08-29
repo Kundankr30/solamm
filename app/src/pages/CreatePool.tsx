@@ -106,11 +106,12 @@ export function CreatePool() {
       console.log(`Create Pool TX: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
 
       const latestBlockhash = await connection.getLatestBlockhash();
-      await connection.confirmTransaction({
+      const conf = await connection.confirmTransaction({
         signature,
         blockhash: latestBlockhash.blockhash,
         lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
       }, 'confirmed');
+      if (conf.value.err) throw new Error('Transaction failed on-chain');
 
       toast.success("Pool Created Successfully!", {
         description: `Tx: ${signature.slice(0,8)}...${signature.slice(-8)}`,
