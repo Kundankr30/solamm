@@ -1,13 +1,20 @@
 use crate::error::AmmCode;
 use anchor_lang::prelude::*;
+
+/// Permanently locked LP tokens on first deposit to prevent first-depositor manipulation.
+/// Mirrors Uniswap V2's MINIMUM_LIQUIDITY approach.
+pub const MINIMUM_LIQUIDITY: u64 = 1_000;
+
 pub fn calculate_initial_lp(amount_a: u64, amount_b: u64) -> Result<u64> {
     let product = (amount_a as u128)
         .checked_mul(amount_b as u128)
         .ok_or(AmmCode::MathOverflow)?;
 
     let lp = isqrt(product);
-    require!(lp > 0, AmmCode::ZeroLiquidity);
-    Ok(lp)
+    require!(lp > MINIMUM_LIQUIDITY, AmmCode::ZeroLiquidity);
+    // Subtract MINIMUM_LIQUIDITY — those LP tokens are never minted,
+    // permanently locking a small share of the pool to prevent price manipulation.
+    Ok(lp - MINIMUM_LIQUIDITY)
 }
 
 // Babylonian method
@@ -21,7 +28,7 @@ fn isqrt(n: u128) -> u64 {
         x = y;
         y = (x + n / x) / 2;
     }
-    x as u64
+    u64::try_from(x).expect("isqrt: result exceeds u64")
 }
 
 pub fn calculate_lp_tokens(
@@ -98,6 +105,7 @@ pub fn tokens_on_withdraw(
     lp_supply: u64,
 ) -> Result<(u64, u64)> {
     require!(lp_amount > 0 && lp_supply > 0, AmmCode::ZeroLiquidity);
+    require!(lp_amount <= lp_supply, AmmCode::InsufficientLiquidity);
 
     let lp = lp_amount as u128;
     let supply = lp_supply as u128;
@@ -121,27 +129,29 @@ pub fn tokens_on_withdraw(
 mod tests {
     use super::*;
     #[test]
-    fn initial_lp_basic_1_1() {
-        // isqrt(1) = 1
-        assert_eq!(calculate_initial_lp(1, 1).unwrap(), 1);
+    fn initial_lp_basic_needs_minimum() {
+        // isqrt(1) = 1, but 1 <= MINIMUM_LIQUIDITY (1000), so it fails
+        let err = calculate_initial_lp(1, 1).unwrap_err();
+        assert_eq!(err, AmmCode::ZeroLiquidity.into());
     }
 
     #[test]
     fn initial_lp_perfect_square() {
-        // isqrt(4 * 9) = isqrt(36) = 6
-        assert_eq!(calculate_initial_lp(4, 9).unwrap(), 6);
+        // isqrt(1_000_000 * 1_000_000) = 1_000_000 - 1000 = 999_000
+        assert_eq!(calculate_initial_lp(1_000_000, 1_000_000).unwrap(), 999_000);
     }
 
     #[test]
     fn initial_lp_floor() {
-        // isqrt(2 * 8) = isqrt(16) = 4
-        assert_eq!(calculate_initial_lp(2, 8).unwrap(), 4);
+        // isqrt(4_000_000 * 9_000_000) = 6_000_000 - 1000 = 5_999_000
+        assert_eq!(calculate_initial_lp(4_000_000, 9_000_000).unwrap(), 5_999_000);
     }
 
     #[test]
-    fn initial_lp_non_square_floor() {
-        // isqrt(10 * 10) = 10; isqrt(2 * 2) = 2; isqrt(3 * 5) = isqrt(15) = 3
-        assert_eq!(calculate_initial_lp(3, 5).unwrap(), 3);
+    fn initial_lp_small_deposit_fails() {
+        // isqrt(3 * 5) = isqrt(15) = 3, but 3 <= 1000, so it fails
+        let err = calculate_initial_lp(3, 5).unwrap_err();
+        assert_eq!(err, AmmCode::ZeroLiquidity.into());
     }
 
     #[test]
@@ -164,9 +174,10 @@ mod tests {
 
     #[test]
     fn lp_tokens_balanced() {
-        // supply=100, reserves=1000/1000, deposit 100/100 → 10 LP from each side → 10
-        let lp = calculate_lp_tokens(100, 100, 1000, 1000, 100).unwrap();
-        assert_eq!(lp, 10);
+        // supply=999_000, reserves=1_000_000/1_000_000, deposit 100_000/100_000
+        // lp = 100_000 * 999_000 / 1_000_000 = 99_900
+        let lp = calculate_lp_tokens(100_000, 100_000, 1_000_000, 1_000_000, 999_000).unwrap();
+        assert_eq!(lp, 99_900);
     }
 
     #[test]
