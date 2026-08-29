@@ -37,7 +37,6 @@ pub fn remove_liquidity_handler(
     min_a_out: u64,
     min_b_out: u64,
 ) -> Result<()> {
-    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
 
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(ctx.accounts.user_token_a.mint, ctx.accounts.pool.mint_a, AmmCode::InvalidMint);

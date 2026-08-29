@@ -33,7 +33,6 @@ pub fn swap_handler(
     min_amount_out: u64,
     a_to_b: bool,
 ) -> Result<()> {
-    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
 
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(ctx.accounts.user_token_a.mint, ctx.accounts.pool.mint_a, AmmCode::InvalidMint);

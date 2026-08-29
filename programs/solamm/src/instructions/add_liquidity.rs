@@ -50,7 +50,6 @@ pub fn add_liquidity_handler(
     amount_b: u64,
     min_lp_out: u64,
 ) -> Result<()> {
-    require!(!ctx.accounts.pool.is_paused, AmmCode::PoolPaused);
 
     // Verify that user_token_a matches the pool's mint_a and is owned by the signer (user)
     require_keys_eq!(
