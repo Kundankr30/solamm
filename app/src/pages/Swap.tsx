@@ -3,7 +3,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { ArrowDownUp, Settings, ChevronDown, Loader2 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, getMint } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, getMint, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/
 import { getProgram, PROGRAM_ID } from "../lib/program";
 import { toast } from "sonner";
 import { KNOWN_TOKENS } from "../lib/tokens";
+import { parseTokenAmount } from "../lib/utils";
 
 const MOCK_TOKENS = KNOWN_TOKENS;
 
@@ -37,9 +38,9 @@ export function Swap() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
   const [customSlippage, setCustomSlippage] = useState("");
-  const [priorityFee, setPriorityFee] = useState("Fast");
   const [customAddress, setCustomAddress] = useState("");
   const [isFetchingMint, setIsFetchingMint] = useState(false);
+  const [insufficientLiquidity, setInsufficientLiquidity] = useState(false);
 
   const openTokenModal = (type: "pay" | "receive") => {
     setSelectingFor(type);
@@ -97,6 +98,8 @@ export function Swap() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuoteResponse(null);
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInsufficientLiquidity(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsQuoting(false);
       return;
     }
@@ -117,10 +120,32 @@ export function Swap() {
         const vaultA = PublicKey.findProgramAddressSync([Buffer.from("vault_a"), poolPda.toBuffer()], PROGRAM_ID)[0];
         const vaultB = PublicKey.findProgramAddressSync([Buffer.from("vault_b"), poolPda.toBuffer()], PROGRAM_ID)[0];
 
-        const vaultABalance = await connection.getTokenAccountBalance(vaultA);
-        const vaultBBalance = await connection.getTokenAccountBalance(vaultB);
+        // Batch-fetch pool account + vault balances in a single RPC call
+        const [poolAccountInfo, vaultABalance, vaultBBalance] = await Promise.all([
+          connection.getAccountInfo(poolPda),
+          connection.getTokenAccountBalance(vaultA),
+          connection.getTokenAccountBalance(vaultB),
+        ]);
 
         if (!active) return;
+
+        if (!poolAccountInfo) {
+          setInsufficientLiquidity(false);
+          setReceiveAmount("");
+          setQuoteResponse(null);
+          return;
+        }
+
+        if (Number(vaultABalance.value.amount) === 0 || Number(vaultBBalance.value.amount) === 0) {
+          setInsufficientLiquidity(true);
+          setReceiveAmount("");
+          setQuoteResponse(null);
+          return;
+        }
+        setInsufficientLiquidity(false);
+
+        // Decode fee_bps from pool account: 8 (discriminator) + 32*6 (pubkeys) = offset 200
+        const feeBps = poolAccountInfo.data.readUIntLE(200, 8);
 
         const aToB = payMint.equals(mintA);
 
@@ -129,7 +154,6 @@ export function Swap() {
 
         const amountInRaw = Number(payAmount) * Math.pow(10, payToken.decimals);
 
-        const feeBps = 30;
         const amountInWithFee = amountInRaw * (10000 - feeBps) / 10000;
         const amountOutRaw = (amountInWithFee * reserveOut) / (reserveIn + amountInWithFee);
         const uiAmountOut = amountOutRaw / Math.pow(10, receiveToken.decimals);
@@ -152,7 +176,11 @@ export function Swap() {
         setReceiveAmount(uiAmountOut.toFixed(receiveToken.decimals));
 
       } catch (err) {
-        console.error("Quote error:", err);
+        if (active) {
+          setQuoteResponse(null);
+          setReceiveAmount("");
+          setInsufficientLiquidity(false);
+        }
       } finally {
         if (active) setIsQuoting(false);
       }
@@ -185,9 +213,11 @@ export function Swap() {
       const slippageNum = Number(slippage) || 0.5;
       const minAmountOutRaw = Math.floor(quoteResponse.amountOutRaw * (1 - slippageNum / 100));
 
+      const amountInBn = parseTokenAmount(payAmount, payToken.decimals);
+
       const tx = await program.methods
         .swap(
-          new BN(quoteResponse.amountInRaw),
+          amountInBn,
           new BN(minAmountOutRaw),
           quoteResponse.aToB
         )
@@ -203,6 +233,21 @@ export function Swap() {
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .transaction();
+
+      // Ensure ATAs exist for both tokens so swaps never fail due to missing accounts
+      const createAtaAIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey,
+        userTokenA,
+        publicKey,
+        quoteResponse.mintA
+      );
+      const createAtaBIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey,
+        userTokenB,
+        publicKey,
+        quoteResponse.mintB
+      );
+      tx.instructions.unshift(createAtaAIx, createAtaBIx);
 
       const signature = await sendTransaction(tx, connection);
       console.log(`Swap transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
@@ -314,7 +359,7 @@ export function Swap() {
                 ) : isQuoting ? (
                   <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Fetching price...</>
                 ) : !quoteResponse && Number(payAmount) > 0 ? (
-                  "Pool Does Not Exist"
+                  insufficientLiquidity ? "Insufficient Liquidity" : "Pool Does Not Exist"
                 ) : quoteResponse && quoteResponse.priceImpact > 15 ? (
                   "Price Impact Too High"
                 ) : (
@@ -404,25 +449,6 @@ export function Swap() {
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
                 </div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-medium text-gray-300">Priority Fee</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {["Default", "Fast", "Turbo"].map(val => (
-                  <Button
-                    key={val}
-                    variant={priorityFee === val ? "default" : "secondary"}
-                    onClick={() => setPriorityFee(val)}
-                    className={priorityFee === val
-                      ? "bg-[#f94119] hover:bg-[#e03a16] text-white flex-1"
-                      : "bg-[#222] hover:bg-[#333] text-gray-300 flex-1 border border-[#333]"}
-                  >
-                    {val}
-                  </Button>
-                ))}
               </div>
             </div>
           </div>

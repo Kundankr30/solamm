@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from "react";
 import type { FC, ReactNode } from "react";
 import {
@@ -16,11 +14,13 @@ interface SolanaProviderProps {
 }
 
 export const SolanaProvider: FC<SolanaProviderProps> = ({ children }) => {
-  // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
   const network = WalletAdapterNetwork.Devnet;
 
-  // You can also provide a custom RPC endpoint
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  // Use custom Helius RPC from env, fall back to public devnet
+  const endpoint = useMemo(
+    () => import.meta.env.VITE_RPC_URL || clusterApiUrl(network),
+    [network]
+  );
 
   return (
     <ConnectionProvider endpoint={endpoint}>

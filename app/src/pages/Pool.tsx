@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, AccountLayout } from "@solana/spl-token";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -16,6 +16,7 @@ type PoolData = {
   vaultABalance: string;
   vaultBBalance: string;
   myLpBalance: string;
+  feeBps: number;
   exists: boolean | "rate_limited";
 };
 
@@ -29,83 +30,81 @@ export function Pool() {
   useEffect(() => {
     const fetchPools = async () => {
       try {
-        const pairs: [typeof KNOWN_TOKENS[0], typeof KNOWN_TOKENS[0]][] = [];
-        // Generate all unique combinations
+        const pairs = [];
+        
         for (let i = 0; i < KNOWN_TOKENS.length; i++) {
           for (let j = i + 1; j < KNOWN_TOKENS.length; j++) {
-            pairs.push([KNOWN_TOKENS[i], KNOWN_TOKENS[j]]);
+            const tA = KNOWN_TOKENS[i];
+            const tB = KNOWN_TOKENS[j];
+            const mintAPub = new PublicKey(tA.address);
+            const mintBPub = new PublicKey(tB.address);
+            
+            const [mint1, mint2] = Buffer.compare(mintAPub.toBuffer(), mintBPub.toBuffer()) < 0 
+              ? [mintAPub, mintBPub] 
+              : [mintBPub, mintAPub];
+
+            const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mint1.toBuffer(), mint2.toBuffer()], PROGRAM_ID)[0];
+            const vaultA = PublicKey.findProgramAddressSync([Buffer.from("vault_a"), poolPda.toBuffer()], PROGRAM_ID)[0];
+            const vaultB = PublicKey.findProgramAddressSync([Buffer.from("vault_b"), poolPda.toBuffer()], PROGRAM_ID)[0];
+            const lpMint = PublicKey.findProgramAddressSync([Buffer.from("lp_mint"), poolPda.toBuffer()], PROGRAM_ID)[0];
+            const userLpAta = publicKey ? getAssociatedTokenAddressSync(lpMint, publicKey) : null;
+            
+            pairs.push({ tokenA: tA, tokenB: tB, mint1, mint2, poolPda, vaultA, vaultB, lpMint, userLpAta });
           }
         }
 
-        const poolDataPromises = pairs.map(async ([tokenA, tokenB]) => {
-          const mintAPub = new PublicKey(tokenA.address);
-          const mintBPub = new PublicKey(tokenB.address);
-          
-          const [mint1, mint2] = Buffer.compare(mintAPub.toBuffer(), mintBPub.toBuffer()) < 0 
-            ? [mintAPub, mintBPub] 
-            : [mintBPub, mintAPub];
-
-          const poolPda = PublicKey.findProgramAddressSync([Buffer.from("pool"), mint1.toBuffer(), mint2.toBuffer()], PROGRAM_ID)[0];
-          const vaultA = PublicKey.findProgramAddressSync([Buffer.from("vault_a"), poolPda.toBuffer()], PROGRAM_ID)[0];
-          const vaultB = PublicKey.findProgramAddressSync([Buffer.from("vault_b"), poolPda.toBuffer()], PROGRAM_ID)[0];
-          const lpMint = PublicKey.findProgramAddressSync([Buffer.from("lp_mint"), poolPda.toBuffer()], PROGRAM_ID)[0];
-
-          try {
-            const [vA, vB] = await Promise.all([
-              connection.getTokenAccountBalance(vaultA),
-              connection.getTokenAccountBalance(vaultB),
-            ]);
-
-            let myLpBalance = "0";
-            if (publicKey) {
-              const userLpAta = getAssociatedTokenAddressSync(lpMint, publicKey);
-              try {
-                const userLp = await connection.getTokenAccountBalance(userLpAta);
-                myLpBalance = Number(userLp.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 2 });
-              } catch {
-                myLpBalance = "0";
-              }
-            }
-
-            return {
-              pair: `${tokenA.symbol}-${tokenB.symbol}`,
-              tokenA,
-              tokenB,
-              vaultABalance: Number(vA.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (mint1.equals(mintAPub) ? tokenA.symbol : tokenB.symbol),
-              vaultBBalance: Number(vB.value.uiAmount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (mint2.equals(mintBPub) ? tokenB.symbol : tokenA.symbol),
-              myLpBalance,
-              exists: true
-            };
-          } catch (e: any) {
-            // If it's a 429 Rate Limit, we want to retain the old pool state, not mark it as non-existent!
-            if (e.message && e.message.includes("429")) {
-              return { pair: `${tokenA.symbol}-${tokenB.symbol}`, tokenA, tokenB, vaultABalance: "", vaultBBalance: "", myLpBalance: "0", exists: "rate_limited" };
-            }
-            // Pool does not exist
-            return { pair: `${tokenA.symbol}-${tokenB.symbol}`, tokenA, tokenB, vaultABalance: "", vaultBBalance: "", myLpBalance: "0", exists: false };
-          }
+        const pubkeysToFetch: PublicKey[] = [];
+        pairs.forEach(p => {
+          pubkeysToFetch.push(p.poolPda, p.vaultA, p.vaultB);
+          if (p.userLpAta) pubkeysToFetch.push(p.userLpAta);
         });
 
-        const results = await Promise.all(poolDataPromises);
+        // 1 SINGLE RPC CALL FOR ALL ACCOUNTS!
+        const accountInfos = await connection.getMultipleAccountsInfo(pubkeysToFetch);
         
-        setPools((prevPools) => {
-          const newPools = prevPools.map(pool => pool); // Clone prev
+        let index = 0;
+        const results = pairs.map(p => {
+          const poolInfo = accountInfos[index++];
+          const vaultAInfo = accountInfos[index++];
+          const vaultBInfo = accountInfos[index++];
+          const userLpInfo = p.userLpAta ? accountInfos[index++] : null;
+
+          if (!poolInfo || !vaultAInfo || !vaultBInfo) {
+            return { pair: `${p.tokenA.symbol}-${p.tokenB.symbol}`, tokenA: p.tokenA, tokenB: p.tokenB, vaultABalance: "", vaultBBalance: "", myLpBalance: "0", feeBps: 30, exists: false as const };
+          }
+
+          // Decode fee_bps from pool account: 8 (discriminator) + 32*6 (pubkeys) = offset 200
+          const feeBps = poolInfo.data.readUIntLE(200, 8);
+
+          const vaultAData = AccountLayout.decode(vaultAInfo.data);
+          const vaultBData = AccountLayout.decode(vaultBInfo.data);
           
-          results.forEach(res => {
-            if (res.exists === true) {
-              // Update or add valid pool
-              const existingIndex = newPools.findIndex(p => p.pair === res.pair);
-              if (existingIndex >= 0) newPools[existingIndex] = res as typeof newPools[0];
-              else newPools.push(res as typeof newPools[0]);
-            } else if (res.exists === false) {
-              // Definitely doesn't exist, remove it if it was there
-              const existingIndex = newPools.findIndex(p => p.pair === res.pair);
-              if (existingIndex >= 0) newPools.splice(existingIndex, 1);
-            }
-            // If res.exists === "rate_limited", we just do nothing and keep the old state!
-          });
-          return newPools;
+          const aDecimals = p.mint1.equals(new PublicKey(p.tokenA.address)) ? p.tokenA.decimals : p.tokenB.decimals;
+          const bDecimals = p.mint2.equals(new PublicKey(p.tokenB.address)) ? p.tokenB.decimals : p.tokenA.decimals;
+
+          const vAUi = Number(vaultAData.amount) / Math.pow(10, aDecimals);
+          const vBUi = Number(vaultBData.amount) / Math.pow(10, bDecimals);
+
+          let myLpBalance = "0";
+          if (userLpInfo) {
+            const userLpData = AccountLayout.decode(userLpInfo.data);
+            // Assuming 6 decimals for LP tokens
+            myLpBalance = (Number(userLpData.amount) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 });
+          }
+
+          return {
+            pair: `${p.tokenA.symbol}-${p.tokenB.symbol}`,
+            tokenA: p.tokenA,
+            tokenB: p.tokenB,
+            vaultABalance: vAUi.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (p.mint1.equals(new PublicKey(p.tokenA.address)) ? p.tokenA.symbol : p.tokenB.symbol),
+            vaultBBalance: vBUi.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (p.mint2.equals(new PublicKey(p.tokenB.address)) ? p.tokenB.symbol : p.tokenA.symbol),
+            myLpBalance,
+            feeBps,
+            exists: true as const
+          };
         });
+
+        setPools(results.filter(p => p.exists));
       } catch (err) {
         console.error("Failed to fetch pools", err);
       } finally {
@@ -189,7 +188,7 @@ export function Pool() {
                         <br/><span className="text-gray-500 text-sm">{pool.vaultBBalance}</span>
                       </td>
                       <td className="p-4 text-gray-300">
-                        <span className="bg-[#222] border border-[#333] px-2 py-1 rounded-md text-xs">0.3%</span>
+                        <span className="bg-[#222] border border-[#333] px-2 py-1 rounded-md text-xs">{(pool.feeBps / 100).toFixed(pool.feeBps % 100 === 0 ? 0 : 1)}%</span>
                       </td>
                       <td className="p-4">
                         <span className={`font-medium ${pool.myLpBalance !== "0" ? "text-white" : "text-gray-500"}`}>
